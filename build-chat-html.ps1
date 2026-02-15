@@ -204,8 +204,6 @@ $html = @"
     /* Main content */
     .main { padding: 1.5rem; max-width: 900px; }
     .main h1 { font-size: 1.4rem; margin-bottom: 1rem; }
-    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: .9rem; }
-    .back-link:hover { text-decoration: underline; }
 
     /* Blocks */
     .block { border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); }
@@ -250,7 +248,6 @@ $html = @"
 $navHtml
     </nav>
     <div class="main">
-      <a href="index.html" class="back-link">← Back to Visualizer</a>
       <h1>🤖 Copilot CLI Chat History</h1>
 $bodyHtml
     </div>
