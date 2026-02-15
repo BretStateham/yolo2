@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quadratic Equation Visualizer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Quadratic Equation Visualizer</h1>
+    <p class="subtitle">Explore <span class="math-inline" data-formula="y = ax^2 + bx + c"></span> interactively</p>
+  </header>
+
+  <main class="app-grid">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Controls and properties">
+      <section class="controls">
+        <h2>Coefficients</h2>
+        <div class="slider-group">
+          <label for="slider-a">a = <output id="val-a">1</output></label>
+          <input type="range" id="slider-a" min="-5" max="5" step="0.1" value="1">
+        </div>
+        <div class="slider-group">
+          <label for="slider-b">b = <output id="val-b">0</output></label>
+          <input type="range" id="slider-b" min="-10" max="10" step="0.1" value="0">
+        </div>
+        <div class="slider-group">
+          <label for="slider-c">c = <output id="val-c">0</output></label>
+          <input type="range" id="slider-c" min="-10" max="10" step="0.1" value="0">
+        </div>
+        <button id="reset-btn" type="button">Reset</button>
+      </section>
+
+      <section class="properties" aria-label="Equation properties">
+        <h2>Properties</h2>
+        <dl id="props-list">
+          <dt>Equation</dt><dd id="prop-equation"></dd>
+          <dt>Vertex</dt><dd id="prop-vertex"></dd>
+          <dt>Axis of Symmetry</dt><dd id="prop-axis"></dd>
+          <dt>Direction</dt><dd id="prop-direction"></dd>
+          <dt>Discriminant</dt><dd id="prop-disc"></dd>
+          <dt>Roots</dt><dd id="prop-roots"></dd>
+        </dl>
+      </section>
+    </aside>
+
+    <!-- Graph -->
+    <section class="graph-section" aria-label="Parabola graph">
+      <canvas id="graph" width="700" height="700"></canvas>
+    </section>
+
+    <!-- Step-by-step solutions -->
+    <section class="steps-section" aria-label="Step-by-step solutions">
+      <h2>Step-by-Step Solutions</h2>
+      <div class="tabs" role="tablist" aria-label="Solution steps">
+        <button role="tab" id="tab-yint" aria-selected="true" aria-controls="panel-yint" tabindex="0">Y-Intercept</button>
+        <button role="tab" id="tab-disc" aria-selected="false" aria-controls="panel-disc" tabindex="-1">Discriminant</button>
+        <button role="tab" id="tab-axis" aria-selected="false" aria-controls="panel-axis" tabindex="-1">Axis of Symmetry</button>
+        <button role="tab" id="tab-qf" aria-selected="false" aria-controls="panel-qf" tabindex="-1">Quadratic Formula</button>
+      </div>
+      <div id="panel-yint" role="tabpanel" aria-labelledby="tab-yint" class="tab-panel active"></div>
+      <div id="panel-disc" role="tabpanel" aria-labelledby="tab-disc" class="tab-panel" hidden></div>
+      <div id="panel-axis" role="tabpanel" aria-labelledby="tab-axis" class="tab-panel" hidden></div>
+      <div id="panel-qf" role="tabpanel" aria-labelledby="tab-qf" class="tab-panel" hidden></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
