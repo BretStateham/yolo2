@@ -39,7 +39,7 @@ $deployDir = Join-Path $root "deploy_out"
 New-Item -ItemType Directory -Path $deployDir -Force | Out-Null
 
 # Copy all web files
-$webFiles = @("index.html", "app.js", "style.css", "chat-history.html", "yolo2-initial-prompt.txt", "yolo2-copilot-chat-history.txt")
+$webFiles = @("index.html", "app.js", "style.css", "chat-history.html", "initial-prompt.html", "yolo2-initial-prompt.txt", "yolo2-copilot-chat-history.txt")
 foreach ($f in $webFiles) {
   $src = Join-Path $root $f
   if (Test-Path $src) {
