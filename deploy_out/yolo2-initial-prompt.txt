@@ -1,0 +1,15 @@
+In the current folder, initialize a git repo and build a single-page web app that helps students visualize quadratic equations (`y = ax² + bx + c`). The app should have:
+
+1. **Interactive sliders** for coefficients a (−5 to 5), b (−10 to 10), and c (−10 to 10) that update the graph in real time.
+2. **A canvas graph** showing the parabola with a coordinate grid, labeled axes/ticks, and these visual elements:
+   - **Red dot** at the vertex with a coordinate label
+   - **Blue dots** at the x-intercepts (roots)
+   - **Green dot** at the y-intercept
+   - **Grey dashed line** for the axis of symmetry
+3. **A properties panel** displaying: equation, vertex, axis of symmetry, direction, discriminant, and roots.
+4. **A tabbed "Step-by-Step Solutions" section** with four tabs — Y-Intercept, Discriminant, Axis of Symmetry, and Quadratic Formula — each showing numbered steps that substitute the live coefficient values. Use **KaTeX** (from CDN) to render all math expressions with proper LaTeX notation (fractions, square roots, Greek letters, subscripts, boxed results). Tabs should be accessible with ARIA roles and keyboard arrow-key navigation.
+5. **Modern, responsive, accessible UI**: CSS grid layout (sidebar + graph on desktop, stacked on mobile), dark mode via `prefers-color-scheme`, custom-styled sliders, and a reset button.
+6. **Graceful linear fallback** when a = 0.
+7. **Bicep infrastructure-as-code** (`infra/main.bicep` + `infra/modules/staticWebApp.bicep`) to provision a new resource group and a free-tier Azure Static Web App in westus2.
+
+After creating all files and committing to git, deploy the Bicep template to my Azure subscription (I'm already logged into `az cli`), then push the web content to the new Static Web App using the SWA CLI.
