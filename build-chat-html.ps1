@@ -56,18 +56,17 @@ function HtmlEncode($text) {
 # Simple markdown to HTML (bold, code blocks, inline code, lists)
 function MarkdownToHtml($text) {
   if (-not $text) { return '' }
-  $t = $text
 
-  # Fenced code blocks (```...```)
+  # HTML-encode everything first so raw HTML in source can't break DOM
+  $t = [System.Net.WebUtility]::HtmlEncode($text)
+
+  # Fenced code blocks (```...```) — content is already encoded
   $t = [regex]::Replace($t, '(?ms)```(\w*)\r?\n(.*?)```', {
     param($m)
     $lang = $m.Groups[1].Value
-    $code = [System.Net.WebUtility]::HtmlEncode($m.Groups[2].Value.TrimEnd())
-    "<pre><code class=`"language-$lang`">$code</code></pre>"
+    $code = $m.Groups[2].Value.TrimEnd()
+    "`n<pre><code class=`"language-$lang`">$code</code></pre>`n"
   })
-
-  # <details> blocks - pass through as-is
-  # Already HTML, leave them alone
 
   # Inline code
   $t = [regex]::Replace($t, '`([^`]+?)`', '<code>$1</code>')
@@ -75,13 +74,40 @@ function MarkdownToHtml($text) {
   # Bold
   $t = [regex]::Replace($t, '\*\*(.+?)\*\*', '<strong>$1</strong>')
 
-  # Line breaks for paragraphs (double newline)
-  $t = [regex]::Replace($t, '(\r?\n){2,}', '</p><p>')
+  # Process line-by-line
+  $lines = $t -split '\r?\n'
+  $result = ""
+  $paraLines = [System.Collections.ArrayList]@()
 
-  # Single line breaks within paragraphs
-  $t = [regex]::Replace($t, '(?<!</p>)\r?\n(?!<)', '<br/>')
+  foreach ($line in $lines) {
+    $trimmed = $line.Trim()
+    if (-not $trimmed) {
+      if ($paraLines.Count -gt 0) {
+        $content = ($paraLines -join '<br/>').Trim()
+        if ($content) { $result += "<p>$content</p>" }
+        $paraLines.Clear()
+      }
+      continue
+    }
+    # <pre> blocks we created above should not be inside <p>
+    if ($trimmed -match '^<pre>|^</pre>|^<pre><code|^</code></pre>') {
+      if ($paraLines.Count -gt 0) {
+        $content = ($paraLines -join '<br/>').Trim()
+        if ($content) { $result += "<p>$content</p>" }
+        $paraLines.Clear()
+      }
+      $result += $trimmed
+      continue
+    }
+    [void]$paraLines.Add($trimmed)
+  }
+  if ($paraLines.Count -gt 0) {
+    $content = ($paraLines -join '<br/>').Trim()
+    if ($content) { $result += "<p>$content</p>" }
+  }
 
-  return "<p>$t</p>"
+  $result = $result -replace '<p>\s*</p>', ''
+  return $result
 }
 
 # Build the user message jump nav
@@ -159,6 +185,13 @@ if ($toolGroup.Count -gt 0) {
   $bodyHtml += FlushToolGroup
 }
 
+# Fix any unclosed <details> tags in the body
+$openDetails = ([regex]::Matches($bodyHtml, '<details>')).Count
+$closeDetails = ([regex]::Matches($bodyHtml, '</details>')).Count
+if ($openDetails -gt $closeDetails) {
+  $bodyHtml += '</details>' * ($openDetails - $closeDetails)
+}
+
 # Assemble final HTML
 $html = @"
 <!DOCTYPE html>
@@ -174,7 +207,7 @@ $html = @"
       --muted: #6b7280; --accent: #4f46e5; --border: #e5e7eb;
       --user-border: #3b82f6; --user-bg: #eff6ff;
       --copilot-bg: #f9fafb; --tool-bg: #f3f4f6;
-      --radius: 8px;
+      --sidebar-w: 260px; --radius: 8px;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -184,17 +217,16 @@ $html = @"
         --copilot-bg: #1e293b; --tool-bg: #0f172a;
       }
     }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow: hidden; height: 100vh; }
-    .layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
-    .layout.collapsed { grid-template-columns: 0 1fr; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; }
 
-    /* Sidebar */
+    /* Sidebar: fixed to left */
     .sidebar {
-      height: 100vh; overflow-y: auto;
-      background: var(--surface); border-right: 1px solid var(--border); padding: 1rem;
-      transition: width .2s, padding .2s, opacity .2s;
+      position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+      background: var(--surface); border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 1rem; z-index: 10;
+      transition: transform .2s;
     }
-    .layout.collapsed .sidebar { width: 0; padding: 0; overflow: hidden; opacity: 0; border: none; }
+    .sidebar.hidden { transform: translateX(-100%); }
     .sidebar h2 { font-size: 1rem; margin-bottom: .75rem; color: var(--accent); }
     .nav-link {
       display: block; padding: .4rem .5rem; margin-bottom: .25rem;
@@ -202,6 +234,12 @@ $html = @"
       border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .nav-link:hover { background: var(--border); }
+
+    /* Main: offset by sidebar width */
+    .main { margin-left: var(--sidebar-w); padding: 1.5rem; transition: margin-left .2s; }
+    .main.full { margin-left: 0; }
+    .main-header { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+    .main-header h1 { font-size: 1.4rem; }
 
     /* Toggle button */
     .sidebar-toggle {
@@ -214,24 +252,16 @@ $html = @"
     .sidebar-toggle:hover { color: var(--accent); background: var(--border); }
     .sidebar-toggle svg { width: 18px; height: 18px; }
     .sidebar-toggle .icon-closed { display: none; }
-    .layout.collapsed .sidebar-toggle .icon-open { display: none; }
-    .layout.collapsed .sidebar-toggle .icon-closed { display: block; }
-
-    /* Main content */
-    .main { padding: 1.5rem; overflow-y: auto; height: 100vh; }
-    .main-header { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; }
-    .main-header h1 { font-size: 1.4rem; }
+    .sidebar.hidden ~ .main .sidebar-toggle .icon-open { display: none; }
+    .sidebar.hidden ~ .main .sidebar-toggle .icon-closed { display: block; }
 
     /* Blocks */
-    .block { border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); }
+    .block { border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); overflow-wrap: break-word; word-wrap: break-word; }
     .block-label { font-weight: 700; font-size: .85rem; margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .03em; }
-
     .user-block { background: var(--user-bg); border-left: 4px solid var(--user-border); }
     .user-block .block-label { color: var(--user-border); }
-
     .copilot-block { background: var(--copilot-bg); }
     .copilot-block .block-label { color: var(--accent); }
-
     .header-block { background: var(--surface); text-align: center; }
 
     /* Tool groups */
@@ -245,12 +275,12 @@ $html = @"
     .tool-call { padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
     .tool-call:last-child { border-bottom: none; }
     .tool-name { font-weight: 700; font-size: .8rem; color: var(--accent); margin-bottom: .25rem; }
-    .tool-body { font-size: .85rem; color: var(--muted); }
+    .tool-body { font-size: .85rem; color: var(--muted); overflow: hidden; word-break: break-all; overflow-wrap: break-word; }
 
     /* Typography */
     .block-body p { margin-bottom: .5rem; }
     .block-body p:last-child { margin-bottom: 0; }
-    pre { background: var(--tool-bg); padding: .75rem; border-radius: 4px; overflow-x: auto; font-size: .82rem; margin: .5rem 0; }
+    pre { background: var(--tool-bg); padding: .75rem; border-radius: 4px; overflow-x: auto; font-size: .82rem; margin: .5rem 0; max-height: 400px; overflow-y: auto; word-break: normal; }
     code { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: .88em; }
     p > code { background: var(--tool-bg); padding: .1rem .3rem; border-radius: 3px; }
     details { margin: .5rem 0; }
@@ -259,30 +289,30 @@ $html = @"
   </style>
 </head>
 <body>
-  <div class="layout" id="layout">
-    <nav class="sidebar" id="sidebar">
-      <h2>💬 Messages</h2>
+  <nav class="sidebar" id="sidebar">
+    <h2>💬 Messages</h2>
 $navHtml
-    </nav>
-    <div class="main">
-      <div class="main-header">
-        <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle messages panel">
-          <svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="3" y="3" width="6" height="18" rx="1" fill="currentColor" opacity="1"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-          <svg class="icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-        </button>
-        <h1>🤖 Copilot CLI Chat History</h1>
-      </div>
-$bodyHtml
+  </nav>
+  <div class="main" id="main">
+    <div class="main-header">
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle messages panel">
+        <svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="3" y="3" width="6" height="18" rx="1" fill="currentColor" opacity="1"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        <svg class="icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      </button>
+      <h1>🤖 Copilot CLI Chat History</h1>
     </div>
+$bodyHtml
   </div>
   <script>
-    const toggle = document.getElementById('sidebar-toggle');
-    const layout = document.getElementById('layout');
-    toggle.addEventListener('click', () => {
-      layout.classList.toggle('collapsed');
+    const sidebar = document.getElementById('sidebar');
+    const main = document.getElementById('main');
+    document.getElementById('sidebar-toggle').addEventListener('click', () => {
+      sidebar.classList.toggle('hidden');
+      main.classList.toggle('full');
     });
     if (window.innerWidth <= 768) {
-      layout.classList.add('collapsed');
+      sidebar.classList.add('hidden');
+      main.classList.add('full');
     }
   </script>
 </body>
