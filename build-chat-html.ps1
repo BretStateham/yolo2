@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Parses yolo2-copilot-chat-history.txt and generates chat-history.html
 #>
@@ -184,15 +184,17 @@ $html = @"
         --copilot-bg: #1e293b; --tool-bg: #0f172a;
       }
     }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-    .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
-    @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow: hidden; height: 100vh; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+    .layout.collapsed { grid-template-columns: 0 1fr; }
 
     /* Sidebar */
     .sidebar {
-      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+      height: 100vh; overflow-y: auto;
       background: var(--surface); border-right: 1px solid var(--border); padding: 1rem;
+      transition: width .2s, padding .2s, opacity .2s;
     }
+    .layout.collapsed .sidebar { width: 0; padding: 0; overflow: hidden; opacity: 0; border: none; }
     .sidebar h2 { font-size: 1rem; margin-bottom: .75rem; color: var(--accent); }
     .nav-link {
       display: block; padding: .4rem .5rem; margin-bottom: .25rem;
@@ -201,9 +203,24 @@ $html = @"
     }
     .nav-link:hover { background: var(--border); }
 
+    /* Toggle button */
+    .sidebar-toggle {
+      background: none; border: none;
+      color: var(--muted); cursor: pointer;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; flex-shrink: 0;
+    }
+    .sidebar-toggle:hover { color: var(--accent); background: var(--border); }
+    .sidebar-toggle svg { width: 18px; height: 18px; }
+    .sidebar-toggle .icon-closed { display: none; }
+    .layout.collapsed .sidebar-toggle .icon-open { display: none; }
+    .layout.collapsed .sidebar-toggle .icon-closed { display: block; }
+
     /* Main content */
-    .main { padding: 1.5rem; max-width: 900px; }
-    .main h1 { font-size: 1.4rem; margin-bottom: 1rem; }
+    .main { padding: 1.5rem; overflow-y: auto; height: 100vh; }
+    .main-header { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+    .main-header h1 { font-size: 1.4rem; }
 
     /* Blocks */
     .block { border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); }
@@ -242,16 +259,32 @@ $html = @"
   </style>
 </head>
 <body>
-  <div class="layout">
-    <nav class="sidebar">
+  <div class="layout" id="layout">
+    <nav class="sidebar" id="sidebar">
       <h2>💬 Messages</h2>
 $navHtml
     </nav>
     <div class="main">
-      <h1>🤖 Copilot CLI Chat History</h1>
+      <div class="main-header">
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle messages panel">
+          <svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="3" y="3" width="6" height="18" rx="1" fill="currentColor" opacity="1"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <svg class="icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
+        <h1>🤖 Copilot CLI Chat History</h1>
+      </div>
 $bodyHtml
     </div>
   </div>
+  <script>
+    const toggle = document.getElementById('sidebar-toggle');
+    const layout = document.getElementById('layout');
+    toggle.addEventListener('click', () => {
+      layout.classList.toggle('collapsed');
+    });
+    if (window.innerWidth <= 768) {
+      layout.classList.add('collapsed');
+    }
+  </script>
 </body>
 </html>
 "@
