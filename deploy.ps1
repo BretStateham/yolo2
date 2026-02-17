@@ -17,9 +17,6 @@ Set-Location $root
 
 $deployToken = "b650006f8bac777431fbd361c7b94ca53c356cde3b33dc829a77208a738d168f04-4197987b-215c-4ee1-a1d4-5ce7a56b31b701e10060a3c6351e"
 
-# Workaround for SWA CLI "Could not load StaticSitesClient metadata" error
-$env:SWA_CLI_DEPLOY_BINARY = "C:\Users\bstateha\.swa\deploy\08e29138cd3dcda4ffda6d587aa580028110c1c7\StaticSitesClient.exe"
-
 # Step 1: Build chat-history.html
 Write-Host "`n📄 Building chat-history.html..." -ForegroundColor Cyan
 & "$root\build-chat-html.ps1"
@@ -36,7 +33,7 @@ if ($status) {
   Write-Host "ℹ️  No changes to commit" -ForegroundColor Yellow
 }
 
-# Step 3: Deploy to Azure SWA
+# Step 3: Deploy to Azure SWA using StaticSitesClient directly (bypasses SWA CLI CDN issues)
 Write-Host "`n🚀 Deploying to Azure Static Web App..." -ForegroundColor Cyan
 $deployDir = Join-Path $root "deploy_out"
 New-Item -ItemType Directory -Path $deployDir -Force | Out-Null
@@ -50,7 +47,9 @@ foreach ($f in $webFiles) {
   }
 }
 
-npx @azure/static-web-apps-cli deploy $deployDir --deployment-token $deployToken --env production
+$staticSitesClient = "C:\Users\bstateha\.swa\deploy\08e29138cd3dcda4ffda6d587aa580028110c1c7\StaticSitesClient.exe"
+$env:DEPLOYMENT_TOKEN = $deployToken
+& $staticSitesClient upload --app $deployDir --outputLocation . --skipAppBuild
 
 # Cleanup
 Remove-Item $deployDir -Recurse -Force -ErrorAction SilentlyContinue
